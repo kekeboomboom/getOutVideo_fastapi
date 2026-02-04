@@ -9,7 +9,7 @@ It is tailored to `getoutvideo.keboom.ac` and a single environment.
 * Lightsail firewall: open **22**, **80**, **443**.
 * DNS: create A records:
   * `getoutvideo.keboom.ac` → your static IP
-  * `api.getoutvideo.keboom.ac` → your static IP
+* `api-getoutvideo.keboom.ac` → your static IP
 * Docker is already installed on the server.
 
 ## Reverse Proxy (Nginx + Cloudflare)
@@ -22,7 +22,7 @@ Docker Compose will expose services **only on localhost**:
 Your Nginx will terminate TLS (using Cloudflare Origin Cert or Let’s Encrypt) and proxy:
 
 * `getoutvideo.keboom.ac` → `http://127.0.0.1:8080`
-* `api.getoutvideo.keboom.ac` → `http://127.0.0.1:8000`
+* `api-getoutvideo.keboom.ac` → `http://127.0.0.1:8000`
 
 ### Example Nginx config
 
@@ -52,13 +52,13 @@ server {
 
 server {
   listen 80;
-  server_name api.getoutvideo.keboom.ac;
+  server_name api-getoutvideo.keboom.ac;
   return 301 https://$host$request_uri;
 }
 
 server {
   listen 443 ssl http2;
-  server_name api.getoutvideo.keboom.ac;
+  server_name api-getoutvideo.keboom.ac;
 
   ssl_certificate     /etc/ssl/certs/origin.pem;
   ssl_certificate_key /etc/ssl/private/origin.key;
@@ -146,5 +146,5 @@ Push to `master` and GitHub Actions will deploy automatically.
 ## URLs
 
 * Frontend: `https://getoutvideo.keboom.ac`
-* Backend API docs: `https://api.getoutvideo.keboom.ac/docs`
-* Backend API base: `https://api.getoutvideo.keboom.ac`
+* Backend API docs: `https://api-getoutvideo.keboom.ac/docs`
+* Backend API base: `https://api-getoutvideo.keboom.ac`
