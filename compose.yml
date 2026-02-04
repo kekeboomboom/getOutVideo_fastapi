@@ -69,3 +69,10 @@ services:
         - NODE_ENV=production
     ports:
       - "127.0.0.1:8080:80"
+
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: "fd00:dead:beef::/64"

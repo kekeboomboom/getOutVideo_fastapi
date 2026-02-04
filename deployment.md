@@ -9,8 +9,65 @@ It is tailored to `getoutvideo.keboom.ac` and a single environment.
 * Lightsail firewall: open **22**, **80**, **443**.
 * DNS: create A records:
   * `getoutvideo.keboom.ac` → your static IP
-* `api-getoutvideo.keboom.ac` → your static IP
+  * `api-getoutvideo.keboom.ac` → your static IP
 * Docker is already installed on the server.
+
+## IPv6 (Optional, Ubuntu 24.04)
+
+If your database resolves to IPv6, enable IPv6 egress on the host and Docker.
+
+### 1) Host IPv6 (netplan)
+
+```bash
+sudo nano /etc/netplan/50-cloud-init.yaml
+```
+
+Example:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+      dhcp6: true
+      accept-ra: true
+```
+
+Apply:
+
+```bash
+sudo netplan apply
+```
+
+Verify:
+
+```bash
+ping6 -c 3 2606:4700:4700::1111
+curl -6 https://ifconfig.co
+```
+
+### 2) Docker IPv6
+
+Create `/etc/docker/daemon.json`:
+
+```json
+{
+  "ipv6": true,
+  "fixed-cidr-v6": "fd00:dead:beef::/48",
+  "ip6tables": true
+}
+```
+
+Restart Docker:
+
+```bash
+sudo systemctl restart docker
+```
+
+### 3) Compose network
+
+This repo enables IPv6 on the default Compose network in `compose.yml`.
 
 ## Reverse Proxy (Nginx + Cloudflare)
 
@@ -81,10 +138,17 @@ For production, set these as GitHub Actions **repository secrets**:
 * `STACK_NAME_PRODUCTION` = e.g. `getoutvideo-keboom-ac`
 * `FRONTEND_HOST` = `https://getoutvideo.keboom.ac`
 * `BACKEND_CORS_ORIGINS` = `https://getoutvideo.keboom.ac`
+* `VITE_API_URL` = `https://api-getoutvideo.keboom.ac`
 * `SECRET_KEY` (generate a strong value)
 * `FIRST_SUPERUSER` (email)
 * `FIRST_SUPERUSER_PASSWORD`
+* `POSTGRES_SERVER`
+* `POSTGRES_PORT`
+* `POSTGRES_DB`
+* `POSTGRES_USER`
 * `POSTGRES_PASSWORD`
+* `DOCKER_IMAGE_BACKEND` = e.g. `backend`
+* `DOCKER_IMAGE_FRONTEND` = e.g. `frontend`
 
 Optional (only if you use them):
 
