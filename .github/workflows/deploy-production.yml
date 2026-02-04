@@ -37,5 +37,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Create .env for compose
+        run: |
+          cat > .env <<EOF
+          DOMAIN=${DOMAIN}
+          FRONTEND_HOST=${FRONTEND_HOST}
+          ENVIRONMENT=${ENVIRONMENT}
+          BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+          SECRET_KEY=${SECRET_KEY}
+          FIRST_SUPERUSER=${FIRST_SUPERUSER}
+          FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD}
+          POSTGRES_SERVER=${POSTGRES_SERVER}
+          POSTGRES_PORT=${POSTGRES_PORT}
+          POSTGRES_DB=${POSTGRES_DB}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          SMTP_HOST=${SMTP_HOST}
+          SMTP_USER=${SMTP_USER}
+          SMTP_PASSWORD=${SMTP_PASSWORD}
+          EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+          SENTRY_DSN=${SENTRY_DSN}
+          VITE_API_URL=${VITE_API_URL}
+          DOCKER_IMAGE_BACKEND=${DOCKER_IMAGE_BACKEND}
+          DOCKER_IMAGE_FRONTEND=${DOCKER_IMAGE_FRONTEND}
+          EOF
       - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} build
       - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} up -d
