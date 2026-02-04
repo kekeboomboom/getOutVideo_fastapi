@@ -24,7 +24,7 @@ Traefik UI, to see how the routes are being handled by the proxy: <http://localh
 
 To check the logs, run (in another terminal):
 
-```bash
+```bash 
 docker compose logs
 ```
 
