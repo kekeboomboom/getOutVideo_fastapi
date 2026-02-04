@@ -12,62 +12,19 @@ It is tailored to `getoutvideo.keboom.ac` and a single environment.
   * `api-getoutvideo.keboom.ac` → your static IP
 * Docker is already installed on the server.
 
-## IPv6 (Optional, Ubuntu 24.04)
+## Database Connectivity (Supabase + GitHub Actions, IPv4)
 
-If your database resolves to IPv6, enable IPv6 egress on the host and Docker.
+GitHub Actions runners are IPv4-only. Supabase direct connections are IPv6 by default,
+so use the Supabase pooler connection string (Session or Transaction pooler) or enable
+the Supabase IPv4 add-on if you must use direct connections.
 
-### 1) Host IPv6 (netplan)
+For the pooler, set:
 
-```bash
-sudo nano /etc/netplan/50-cloud-init.yaml
-```
+* `POSTGRES_SERVER` to the pooler host, e.g. `aws-1-ap-southeast-1.pooler.supabase.com`
+* `POSTGRES_USER` to `postgres.<project-ref>` (the pooler username)
+* `POSTGRES_PORT=5432`, `POSTGRES_DB=postgres`, `POSTGRES_PASSWORD` as provided by Supabase
 
-Example:
-
-```yaml
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-      dhcp6: true
-      accept-ra: true
-```
-
-Apply:
-
-```bash
-sudo netplan apply
-```
-
-Verify:
-
-```bash
-ping6 -c 3 2606:4700:4700::1111
-curl -6 https://ifconfig.co
-```
-
-### 2) Docker IPv6
-
-Create `/etc/docker/daemon.json`:
-
-```json
-{
-  "ipv6": true,
-  "fixed-cidr-v6": "fd00:dead:beef::/48",
-  "ip6tables": true
-}
-```
-
-Restart Docker:
-
-```bash
-sudo systemctl restart docker
-```
-
-### 3) Compose network
-
-This repo enables IPv6 on the default Compose network in `compose.yml`.
+IPv6 is disabled on the default Compose network in `compose.yml`, so no host IPv6 setup is required.
 
 ## Reverse Proxy (Nginx + Cloudflare)
 

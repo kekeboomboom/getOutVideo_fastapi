@@ -72,7 +72,4 @@ services:
 
 networks:
   default:
-    enable_ipv6: true
-    ipam:
-      config:
-        - subnet: "fd00:1234:5678::/64"
+    enable_ipv6: false
