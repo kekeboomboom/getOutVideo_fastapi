@@ -8,7 +8,7 @@ This is a full-stack FastAPI application template with:
 - **Backend**: FastAPI (Python 3.10+) with SQLModel ORM, PostgreSQL database, Alembic migrations
 - **Frontend**: React + TypeScript with Vite, TanStack Query/Router, Tailwind CSS, shadcn/ui
 - **Infrastructure**: Docker Compose orchestration with Traefik reverse proxy
-- **Authentication**: JWT-based auth with password recovery
+- **Authentication**: JWT-based auth
 - **Testing**: Pytest (backend), Playwright (frontend E2E)
 
 ## Essential Commands
@@ -138,7 +138,6 @@ uv run prek run --all-files
 - **Configuration**: `backend/app/core/config.py` - Pydantic Settings reading from `../.env`
 - **Database setup**: `backend/app/core/db.py` - SQLModel engine and session management
 - **Dependencies**: `backend/app/api/deps.py` - FastAPI dependencies (DB sessions, current user)
-- **Utilities**: `backend/app/utils.py` - Email sending, password hashing, token generation
 - **Migrations**: `backend/app/alembic/` - Alembic migration files
 - **Tests**: `backend/tests/` - Pytest test suite with fixtures
 
@@ -151,7 +150,7 @@ The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic mi
   - `__root.tsx` - Root layout wrapper
   - `_layout.tsx` - Authenticated layout
   - `_layout/` - Authenticated pages (admin, items, settings, etc.)
-  - Public routes: `login.tsx`, `signup.tsx`, `recover-password.tsx`, `reset-password.tsx`
+  - Public routes: `login.tsx`, `signup.tsx`
 - **Components**: `frontend/src/components/` - Organized by feature (Admin, Items, UserSettings, Common)
 - **Generated API Client**: `frontend/src/client/` - Auto-generated from OpenAPI (do not edit manually)
 - **UI Components**: `frontend/src/components/ui/` - shadcn/ui components
@@ -162,7 +161,7 @@ The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic mi
 
 - **Root `.env`**: Contains all environment variables for both frontend and backend
 - **`compose.yml`**: Production-like services (db, adminer, prestart, backend, frontend)
-- **`compose.override.yml`**: Development overrides (volume mounts, hot reload, local Traefik, mailcatcher)
+- **`compose.override.yml`**: Development overrides (volume mounts, hot reload, local Traefik)
 
 ### Key Design Patterns
 
@@ -178,14 +177,12 @@ The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic mi
 3. **Authentication Flow**:
    - JWT tokens with configurable expiration (8 days default)
    - Current user dependency in `api/deps.py` extracts user from token
-   - Password recovery via email with time-limited tokens
 
 4. **Frontend Client Generation**: OpenAPI schema → TypeScript client via `@hey-api/openapi-ts`
    - Happens automatically in pre-commit hook when backend changes
    - Manual trigger: `bash ./scripts/generate-client.sh`
 
 5. **Private API Routes**: `api/routes/private.py` only included when `ENVIRONMENT=local`
-   - Used for testing utilities (e.g., sending test emails)
 
 ## Environment Variables
 
@@ -203,7 +200,6 @@ With `DOMAIN=localhost`:
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8080
 - Traefik UI: http://localhost:8090
-- MailCatcher: http://localhost:1080
 
 With `DOMAIN=localhost.tiangolo.com`:
 - Frontend: http://dashboard.localhost.tiangolo.com
@@ -214,7 +210,6 @@ With `DOMAIN=localhost.tiangolo.com`:
 Backend tests use pytest with database fixtures. Coverage report generated in `htmlcov/index.html`.
 
 Frontend E2E tests use Playwright with utilities in `frontend/tests/utils/` for:
-- Mailcatcher integration (email verification)
 - Random data generation
 - Private API calls (user creation)
 - Auth setup (stored state for authenticated tests)

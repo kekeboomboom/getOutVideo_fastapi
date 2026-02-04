@@ -8,7 +8,7 @@
 - `img/`: documentation screenshots.
 
 ## Build, Test, and Development Commands
-- `docker compose watch`: start the full local stack (backend, frontend, db, mailcatcher).
+- `docker compose watch`: start the full local stack (backend, frontend, db).
 - `docker compose logs [service]`: view service logs (e.g., `backend`).
 - Backend (from `backend/`):
   - `uv sync`: install Python deps.
