@@ -17,11 +17,8 @@ jobs:
       DOMAIN: ${{ secrets.DOMAIN_PRODUCTION }}
       PROJECT_NAME: ${{ secrets.PROJECT_NAME || github.event.repository.name }}
       STACK_NAME: ${{ secrets.STACK_NAME_PRODUCTION }}
-      FRONTEND_HOST: ${{ secrets.FRONTEND_HOST }}
       BACKEND_CORS_ORIGINS: ${{ secrets.BACKEND_CORS_ORIGINS }}
-      VITE_API_URL: ${{ secrets.VITE_API_URL }}
       DOCKER_IMAGE_BACKEND: ${{ secrets.DOCKER_IMAGE_BACKEND }}
-      DOCKER_IMAGE_FRONTEND: ${{ secrets.DOCKER_IMAGE_FRONTEND }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
       FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
@@ -43,7 +40,6 @@ jobs:
           cat > .env <<EOF
           DOMAIN=${DOMAIN}
           PROJECT_NAME=${PROJECT_NAME}
-          FRONTEND_HOST=${FRONTEND_HOST}
           ENVIRONMENT=${ENVIRONMENT}
           BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
           SECRET_KEY=${SECRET_KEY}
@@ -59,9 +55,7 @@ jobs:
           SMTP_PASSWORD=${SMTP_PASSWORD}
           EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
           SENTRY_DSN=${SENTRY_DSN}
-          VITE_API_URL=${VITE_API_URL}
           DOCKER_IMAGE_BACKEND=${DOCKER_IMAGE_BACKEND}
-          DOCKER_IMAGE_FRONTEND=${DOCKER_IMAGE_FRONTEND}
           EOF
       - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} build
       - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} up -d

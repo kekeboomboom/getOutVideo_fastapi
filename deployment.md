@@ -30,40 +30,15 @@ IPv6 is disabled on the default Compose network in `compose.yml`, so no host IPv
 
 Docker Compose will expose services **only on localhost**:
 
-* Frontend: `127.0.0.1:8080`
 * Backend API: `127.0.0.1:8000`
 
 Your Nginx will terminate TLS (using Cloudflare Origin Cert or Let’s Encrypt) and proxy:
 
-* `getoutvideo.keboom.ac` → `http://127.0.0.1:8080`
 * `api-getoutvideo.keboom.ac` → `http://127.0.0.1:8000`
 
 ### Example Nginx config
 
 ```nginx
-server {
-  listen 80;
-  server_name getoutvideo.keboom.ac;
-  return 301 https://$host$request_uri;
-}
-
-server {
-  listen 443 ssl http2;
-  server_name getoutvideo.keboom.ac;
-
-  # Use Cloudflare Origin Cert or Let's Encrypt certs here
-  ssl_certificate     /etc/ssl/certs/origin.pem;
-  ssl_certificate_key /etc/ssl/private/origin.key;
-
-  location / {
-    proxy_pass http://127.0.0.1:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-
 server {
   listen 80;
   server_name api-getoutvideo.keboom.ac;
@@ -93,9 +68,7 @@ For production, set these as GitHub Actions **repository secrets**:
 
 * `DOMAIN_PRODUCTION` = `getoutvideo.keboom.ac`
 * `STACK_NAME_PRODUCTION` = e.g. `getoutvideo-keboom-ac`
-* `FRONTEND_HOST` = `https://getoutvideo.keboom.ac`
-* `BACKEND_CORS_ORIGINS` = `https://getoutvideo.keboom.ac`
-* `VITE_API_URL` = `https://api-getoutvideo.keboom.ac`
+* `BACKEND_CORS_ORIGINS` = `https://your-client.example.com`
 * `SECRET_KEY` (generate a strong value)
 * `FIRST_SUPERUSER` (email)
 * `FIRST_SUPERUSER_PASSWORD`
@@ -105,7 +78,6 @@ For production, set these as GitHub Actions **repository secrets**:
 * `POSTGRES_USER`
 * `POSTGRES_PASSWORD`
 * `DOCKER_IMAGE_BACKEND` = e.g. `backend`
-* `DOCKER_IMAGE_FRONTEND` = e.g. `frontend`
 
 Optional (only if you use them):
 
@@ -166,6 +138,5 @@ Push to `master` and GitHub Actions will deploy automatically.
 
 ## URLs
 
-* Frontend: `https://getoutvideo.keboom.ac`
 * Backend API docs: `https://api-getoutvideo.keboom.ac/docs`
 * Backend API base: `https://api-getoutvideo.keboom.ac`

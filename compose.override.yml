@@ -24,14 +24,3 @@ services:
     # TODO: remove once coverage is done locally
     volumes:
       - ./backend/htmlcov:/app/backend/htmlcov
-
-  frontend:
-    restart: "no"
-    ports:
-      - "5173:80"
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        - VITE_API_URL=http://localhost:8000
-        - NODE_ENV=development

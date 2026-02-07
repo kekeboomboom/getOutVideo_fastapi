@@ -6,10 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a full-stack FastAPI application template with:
 - **Backend**: FastAPI (Python 3.10+) with SQLModel ORM, PostgreSQL database, Alembic migrations
-- **Frontend**: React + TypeScript with Vite, TanStack Query/Router, Tailwind CSS, shadcn/ui
 - **Infrastructure**: Docker Compose orchestration with Traefik reverse proxy
 - **Authentication**: JWT-based auth
-- **Testing**: Pytest (backend), Playwright (frontend E2E)
+- **Testing**: Pytest (backend)
 
 ## Essential Commands
 
@@ -22,7 +21,7 @@ docker compose watch
 
 Stop specific service:
 ```bash
-docker compose stop backend  # or frontend
+docker compose stop backend
 ```
 
 ### Backend Development
@@ -71,40 +70,6 @@ Type checking:
 uv run mypy .
 ```
 
-### Frontend Development
-
-From `frontend/` directory:
-
-Install dependencies:
-```bash
-bun install  # or npm install
-```
-
-Run local development server (without Docker):
-```bash
-bun run dev
-```
-
-Generate API client from OpenAPI schema:
-```bash
-bash ./scripts/generate-client.sh  # from project root
-# OR manually:
-bun run generate-client  # after downloading openapi.json to frontend/
-```
-
-Run E2E tests (requires backend running):
-```bash
-docker compose up -d --wait backend
-bunx playwright test
-bunx playwright test --ui  # UI mode
-docker compose down -v  # cleanup after tests
-```
-
-Frontend linting (Biome):
-```bash
-npm run lint
-```
-
 ### Database Migrations
 
 From inside backend container:
@@ -143,24 +108,10 @@ uv run prek run --all-files
 
 The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic migrations and creates the first superuser before the main backend service starts.
 
-### Frontend Structure
-
-- **Entry point**: `frontend/src/main.tsx` - React app bootstrap with TanStack Router
-- **Routes**: `frontend/src/routes/` - File-based routing (TanStack Router convention)
-  - `__root.tsx` - Root layout wrapper
-  - `_layout.tsx` - Authenticated layout
-  - `_layout/` - Authenticated pages (admin, items, settings, etc.)
-  - Public routes: `login.tsx`, `signup.tsx`
-- **Components**: `frontend/src/components/` - Organized by feature (Admin, Items, UserSettings, Common)
-- **Generated API Client**: `frontend/src/client/` - Auto-generated from OpenAPI (do not edit manually)
-- **UI Components**: `frontend/src/components/ui/` - shadcn/ui components
-- **Hooks**: `frontend/src/hooks/` - Custom React hooks (auth, toast, clipboard, mobile detection)
-- **Sidebar**: `frontend/src/components/Sidebar/` - App navigation sidebar
-
 ### Configuration Files
 
-- **Root `.env`**: Contains all environment variables for both frontend and backend
-- **`compose.yml`**: Production-like services (db, adminer, prestart, backend, frontend)
+- **Root `.env`**: Contains environment variables for the backend and infrastructure
+- **`compose.yml`**: Production-like services (db, adminer, prestart, backend)
 - **`compose.override.yml`**: Development overrides (volume mounts, hot reload, local Traefik)
 
 ### Key Design Patterns
@@ -178,11 +129,7 @@ The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic mi
    - JWT tokens with configurable expiration (8 days default)
    - Current user dependency in `api/deps.py` extracts user from token
 
-4. **Frontend Client Generation**: OpenAPI schema → TypeScript client via `@hey-api/openapi-ts`
-   - Happens automatically in pre-commit hook when backend changes
-   - Manual trigger: `bash ./scripts/generate-client.sh`
-
-5. **Private API Routes**: `api/routes/private.py` only included when `ENVIRONMENT=local`
+4. **Private API Routes**: `api/routes/private.py` only included when `ENVIRONMENT=local`
 
 ## Environment Variables
 
@@ -195,31 +142,22 @@ Critical variables in `.env` (must be changed for production):
 ## Service URLs (Development)
 
 With `DOMAIN=localhost`:
-- Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 - Adminer: http://localhost:8080
 - Traefik UI: http://localhost:8090
 
 With `DOMAIN=localhost.tiangolo.com`:
-- Frontend: http://dashboard.localhost.tiangolo.com
 - Backend API: http://api.localhost.tiangolo.com
 
 ## Testing
 
 Backend tests use pytest with database fixtures. Coverage report generated in `htmlcov/index.html`.
 
-Frontend E2E tests use Playwright with utilities in `frontend/tests/utils/` for:
-- Random data generation
-- Private API calls (user creation)
-- Auth setup (stored state for authenticated tests)
-
 ## Code Quality
 
 Pre-commit hooks run automatically before commits:
 - Ruff (Python linting and formatting)
-- Biome (Frontend linting)
-- OpenAPI client generation (when backend changes)
 - File checks (large files, YAML/TOML validation, EOF/whitespace fixes)
 
 Ruff configuration in `backend/pyproject.toml` enforces:
