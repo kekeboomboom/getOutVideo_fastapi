@@ -13,7 +13,7 @@ def get_video_service(request: Request) -> VideoProcessingService:
 
 
 @router.post(
-    "/process/",
+    "/process",
     response_model=VideoProcessResponse,
     response_model_exclude_none=True,
     responses={
