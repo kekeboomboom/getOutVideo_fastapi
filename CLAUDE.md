@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a full-stack FastAPI application template with:
+This is a full-stack application with:
 - **Backend**: FastAPI (Python 3.10+) with SQLModel ORM, PostgreSQL database, Alembic migrations
-- **Infrastructure**: Docker Compose orchestration with Traefik reverse proxy
-- **Authentication**: JWT-based auth
-- **Testing**: Pytest (backend)
+- **Frontend**: Next.js 14 (TypeScript) with Clerk auth, Drizzle ORM, Tailwind CSS, Stripe
+- **Infrastructure**: Docker Compose orchestration (backend + frontend), Nginx reverse proxy, Cloudflare
+- **Authentication**: JWT-based auth (backend), Clerk (frontend)
+- **Testing**: Pytest (backend), Vitest + Playwright (frontend)
 
 ## Essential Commands
 
@@ -22,6 +23,13 @@ docker compose watch
 Stop specific service:
 ```bash
 docker compose stop backend
+docker compose stop frontend
+```
+
+Build and run production stack (backend + frontend):
+```bash
+docker compose -f compose.yml build
+docker compose -f compose.yml up -d
 ```
 
 ### Backend Development
@@ -108,10 +116,21 @@ uv run prek run --all-files
 
 The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic migrations and creates the first superuser before the main backend service starts.
 
+### Frontend Structure
+
+- **Entry point**: `frontend/src/app/layout.tsx` - Root layout
+- **Pages**: `frontend/src/app/[locale]/` - Internationalized routes (App Router)
+- **API routes**: `frontend/src/app/api/` - Next.js API routes (health, youtube-captions)
+- **Components**: `frontend/src/components/` - Reusable UI components
+- **Features**: `frontend/src/features/` - Feature-specific components
+- **Config**: `frontend/src/libs/Env.ts` - Environment variable validation (Zod + T3 Env)
+- **Database**: `frontend/src/models/Schema.ts` - Drizzle ORM schema
+- **Dockerfile**: `frontend/Dockerfile` - Multi-stage production build
+
 ### Configuration Files
 
-- **Root `.env`**: Contains environment variables for the backend and infrastructure
-- **`compose.yml`**: Production-like services (db, adminer, prestart, backend)
+- **Root `.env`**: Contains environment variables for both backend and frontend
+- **`compose.yml`**: Production services (prestart, backend, frontend)
 - **`compose.override.yml`**: Development overrides (volume mounts, hot reload, local Traefik)
 
 ### Key Design Patterns
@@ -139,16 +158,33 @@ Critical variables in `.env` (must be changed for production):
 - `POSTGRES_PASSWORD` - Database password
 - `DOMAIN` - Base domain for Traefik routing (use `localhost.tiangolo.com` to test subdomain routing locally)
 
+## Deployment
+
+Production deployment docs: [deployment.md](./deployment.md)
+
+Key points:
+- Both backend and frontend run as Docker containers via `compose.yml`
+- Nginx reverse-proxies `getoutvideo.keboom.ac` → frontend (port 3000) and `api-getoutvideo.keboom.ac` → backend (port 8000)
+- `NEXT_PUBLIC_*` variables are baked into the frontend at Docker build time via build args
+- CI/CD via GitHub Actions self-hosted runner (push to `master` triggers deploy)
+
 ## Service URLs (Development)
 
 With `DOMAIN=localhost`:
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
+- Frontend: http://localhost:3000
 - Adminer: http://localhost:8080
 - Traefik UI: http://localhost:8090
 
 With `DOMAIN=localhost.tiangolo.com`:
 - Backend API: http://api.localhost.tiangolo.com
+
+## Service URLs (Production)
+
+- Frontend: https://getoutvideo.keboom.ac
+- Backend API: https://api-getoutvideo.keboom.ac
+- Backend API docs: https://api-getoutvideo.keboom.ac/docs
 
 ## Testing
 

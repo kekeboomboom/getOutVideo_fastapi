@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/tooltip';
 import { FeatureCard } from '@/features/landing/FeatureCard';
 
+type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
 type MarkdownBlock =
-  | { type: 'heading'; level: 1 | 2 | 3 | 4 | 5 | 6; text: string }
+  | { type: 'heading'; level: HeadingLevel; text: string }
   | { type: 'paragraph'; text: string }
   | { type: 'list'; items: string[] }
   | { type: 'code'; text: string };
@@ -67,20 +69,28 @@ const parseMarkdown = (source: string): MarkdownBlock[] => {
 
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
+      const hashes = headingMatch[1];
+      if (!hashes) {
+        return;
+      }
       flushParagraph();
       flushList();
       blocks.push({
         type: 'heading',
-        level: headingMatch[1].length as MarkdownBlock['level'],
-        text: headingMatch[2].trim(),
+        level: hashes.length as HeadingLevel,
+        text: (headingMatch[2] ?? '').trim(),
       });
       return;
     }
 
     const listMatch = line.match(/^[-*]\s+(.*)$/);
     if (listMatch) {
+      const item = listMatch[1];
+      if (!item) {
+        return;
+      }
       flushParagraph();
-      listItems.push(listMatch[1].trim());
+      listItems.push(item.trim());
       return;
     }
 
@@ -213,9 +223,10 @@ export const YouTubeCaptionExtractor = () => {
       }
 
       const responseData = data?.data ?? data;
-      const results = responseData?.results ?? {};
-      const styleKey = defaultStyles[0]?.toLowerCase();
-      const resultsCaption = (styleKey ? results?.[styleKey] : undefined) ?? results?.[defaultStyles[0]];
+      const results = (responseData?.results ?? {}) as Record<string, unknown>;
+      const defaultStyle = defaultStyles[0] ?? 'Balanced';
+      const styleKey = defaultStyle.toLowerCase();
+      const resultsCaption = (styleKey ? results[styleKey] : undefined) ?? results[defaultStyle];
 
       const captionCandidate = [
         resultsCaption,

@@ -1,16 +1,38 @@
-# FastAPI Project - Production Deployment (Nginx + Cloudflare)
+# Production Deployment (Docker Compose + Nginx + Cloudflare)
 
-This guide is production-only and uses Docker Compose behind **your existing Nginx + Cloudflare**.
-It is tailored to `getoutvideo.keboom.ac` and a single environment.
+This guide covers production deployment of **both the backend (FastAPI) and frontend (Next.js)** using Docker Compose, behind Nginx + Cloudflare.
+
+It is tailored to `getoutvideo.keboom.ac` on a single Lightsail instance.
+
+## Architecture
+
+```
+Internet
+  │
+  ▼
+Cloudflare (DNS + CDN + TLS termination to origin)
+  │
+  ├── getoutvideo.keboom.ac      ──► Nginx ──► 127.0.0.1:3000 (frontend)
+  └── api-getoutvideo.keboom.ac  ──► Nginx ──► 127.0.0.1:8000 (backend)
+
+Docker Compose Stack:
+  ┌──────────┐   ┌──────────┐   ┌──────────┐
+  │ prestart │──►│ backend  │◄──│ frontend │
+  │ (migrate)│   │ :8000    │   │ :3000    │
+  └──────────┘   └──────────┘   └──────────┘
+                       │               │
+                       ▼               ▼
+              Supabase PostgreSQL   Clerk Auth
+```
 
 ## Preparation
 
-* Lightsail: assign a static IP to the instance.
-* Lightsail firewall: open **22**, **80**, **443**.
-* DNS: create A records:
-  * `getoutvideo.keboom.ac` → your static IP
-  * `api-getoutvideo.keboom.ac` → your static IP
-* Docker is already installed on the server.
+* **Lightsail**: assign a static IP to the instance.
+* **Lightsail firewall**: open ports **22**, **80**, **443**.
+* **DNS**: create A records pointing to your static IP:
+  * `getoutvideo.keboom.ac` → static IP (frontend)
+  * `api-getoutvideo.keboom.ac` → static IP (backend API)
+* **Docker** and **Docker Compose** are already installed on the server.
 
 ## Database Connectivity (Supabase + GitHub Actions, IPv4)
 
@@ -26,19 +48,75 @@ For the pooler, set:
 
 IPv6 is disabled on the default Compose network in `compose.yml`, so no host IPv6 setup is required.
 
+## Docker Compose Services
+
+The `compose.yml` defines three services:
+
+| Service    | Image / Dockerfile          | Port             | Description                                      |
+|------------|-----------------------------|------------------|--------------------------------------------------|
+| `prestart` | `backend/Dockerfile`        | none             | Runs Alembic migrations + creates superuser      |
+| `backend`  | `backend/Dockerfile`        | `127.0.0.1:8000` | FastAPI application server                       |
+| `frontend` | `frontend/Dockerfile`       | `127.0.0.1:3000` | Next.js production server                        |
+
+Startup order: `prestart` → `backend` (waits for prestart) → `frontend` (waits for backend health check).
+
+### Frontend Docker Build
+
+The frontend uses a **multi-stage Docker build** (`frontend/Dockerfile`):
+
+1. **deps** -- Installs npm dependencies (cached layer).
+2. **builder** -- Copies source and runs `npm run build`. `NEXT_PUBLIC_*` variables are passed as
+   build args because they are baked into the client-side JavaScript bundle at build time.
+3. **runner** -- Minimal production image. Copies built `.next/`, `node_modules/`, and `public/`.
+
+> **Important**: `NEXT_PUBLIC_*` environment variables must be provided at **build time** via
+> Docker build args. They cannot be changed at runtime because Next.js inlines them into the
+> client bundle during `next build`.
+
 ## Reverse Proxy (Nginx + Cloudflare)
 
-Docker Compose will expose services **only on localhost**:
+Docker Compose exposes services **only on localhost**:
 
+* Frontend: `127.0.0.1:3000`
 * Backend API: `127.0.0.1:8000`
 
-Your Nginx will terminate TLS (using Cloudflare Origin Cert or Let’s Encrypt) and proxy:
+Nginx terminates TLS (using Cloudflare Origin Cert or Let's Encrypt) and proxies to both services.
 
-* `api-getoutvideo.keboom.ac` → `http://127.0.0.1:8000`
-
-### Example Nginx config
+### Nginx Configuration
 
 ```nginx
+# ---- Frontend: getoutvideo.keboom.ac ----
+
+server {
+  listen 80;
+  server_name getoutvideo.keboom.ac;
+  return 301 https://$host$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name getoutvideo.keboom.ac;
+
+  ssl_certificate     /etc/ssl/certs/origin.pem;
+  ssl_certificate_key /etc/ssl/private/origin.key;
+
+  # Allow larger request bodies (file uploads, etc.)
+  client_max_body_size 10M;
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+
+# ---- Backend API: api-getoutvideo.keboom.ac ----
+
 server {
   listen 80;
   server_name api-getoutvideo.keboom.ac;
@@ -52,6 +130,8 @@ server {
   ssl_certificate     /etc/ssl/certs/origin.pem;
   ssl_certificate_key /etc/ssl/private/origin.key;
 
+  client_max_body_size 10M;
+
   location / {
     proxy_pass http://127.0.0.1:8000;
     proxy_set_header Host $host;
@@ -62,49 +142,88 @@ server {
 }
 ```
 
+Save this as `/etc/nginx/sites-available/getoutvideo` and symlink to `sites-enabled/`:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/getoutvideo /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
 ## Required Environment Variables
 
-For production, set these as GitHub Actions **repository secrets**:
+### Backend Secrets (GitHub Actions repository secrets)
 
-* `DOMAIN_PRODUCTION` = `getoutvideo.keboom.ac`
-* `STACK_NAME_PRODUCTION` = e.g. `getoutvideo-keboom-ac`
-* `BACKEND_CORS_ORIGINS` = `https://your-client.example.com`
-* `SECRET_KEY` (generate a strong value)
-* `FIRST_SUPERUSER` (email)
-* `FIRST_SUPERUSER_PASSWORD`
-* `POSTGRES_SERVER`
-* `POSTGRES_PORT`
-* `POSTGRES_DB`
-* `POSTGRES_USER`
-* `POSTGRES_PASSWORD`
-* `DOCKER_IMAGE_BACKEND` = e.g. `backend`
+| Secret                       | Example / Notes                                           |
+|------------------------------|-----------------------------------------------------------|
+| `DOMAIN_PRODUCTION`          | `getoutvideo.keboom.ac`                                    |
+| `STACK_NAME_PRODUCTION`      | `getoutvideo-keboom-ac`                                    |
+| `BACKEND_CORS_ORIGINS`       | `https://getoutvideo.keboom.ac,https://api-getoutvideo.keboom.ac` |
+| `SECRET_KEY`                 | Generate: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `FIRST_SUPERUSER`            | Email, e.g. `admin@example.com`                            |
+| `FIRST_SUPERUSER_PASSWORD`   | Strong password                                            |
+| `POSTGRES_SERVER`            | Supabase pooler host                                       |
+| `POSTGRES_PORT`              | `5432`                                                     |
+| `POSTGRES_DB`                | `postgres`                                                 |
+| `POSTGRES_USER`              | `postgres.<project-ref>`                                   |
+| `POSTGRES_PASSWORD`          | From Supabase                                              |
+| `DOCKER_IMAGE_BACKEND`       | `backend`                                                  |
 
-Optional (only if you use them):
+### Frontend Secrets (GitHub Actions repository secrets)
 
-* `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAILS_FROM_EMAIL`
-* `SENTRY_DSN`
+| Secret                              | Example / Notes                          |
+|-------------------------------------|------------------------------------------|
+| `DOCKER_IMAGE_FRONTEND`             | `frontend`                                |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | From Clerk Dashboard                      |
+| `CLERK_SECRET_KEY`                  | From Clerk Dashboard                      |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`| From Stripe Dashboard (live key)          |
+| `STRIPE_SECRET_KEY`                 | From Stripe Dashboard                     |
+| `STRIPE_WEBHOOK_SECRET`             | From Stripe webhook setup                 |
+| `DATABASE_URL`                      | `postgresql://user:pass@host:5432/db`     |
 
-### Generate secret keys
+### Optional Secrets
+
+| Secret              | Notes                                     |
+|---------------------|-------------------------------------------|
+| `SMTP_HOST`         | For email sending                          |
+| `SMTP_USER`         | SMTP username                              |
+| `SMTP_PASSWORD`     | SMTP password                              |
+| `EMAILS_FROM_EMAIL` | From address                               |
+| `SENTRY_DSN`        | Backend error monitoring                   |
+| `NEXT_PUBLIC_SENTRY_DSN` | Frontend error monitoring             |
+| `SENTRY_AUTH_TOKEN`  | Source map uploads                         |
+| `LOGTAIL_SOURCE_TOKEN` | Frontend logging (Better Stack)         |
+
+### Generate Secret Keys
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Run it once for `SECRET_KEY` and again for `FIRST_SUPERUSER_PASSWORD` (or use a password manager).
+Run once for `SECRET_KEY` and again for `FIRST_SUPERUSER_PASSWORD` (or use a password manager).
 
-## Deploy Manually (Optional)
+## Deploy Manually (One-off)
 
-If you want a one-off deploy before CI/CD:
+If you want a one-off deploy before CI/CD is set up:
 
 ```bash
-rsync -av --filter=":- .gitignore" ./ root@your-server.example.com:/root/code/app/
-ssh root@your-server.example.com
+# Sync code to server
+rsync -av --filter=":- .gitignore" ./ root@your-server:/root/code/app/
+
+# SSH into the server
+ssh root@your-server
 cd /root/code/app/
+
+# Build and start all services (backend + frontend)
 docker compose -f compose.yml build
 docker compose -f compose.yml up -d
+
+# Check that services are running
+docker compose -f compose.yml ps
+docker compose -f compose.yml logs frontend --tail 50
+docker compose -f compose.yml logs backend --tail 50
 ```
 
-## Continuous Deployment (GitHub Actions, Production Only)
+## Continuous Deployment (GitHub Actions)
 
 ### 1) Install a self-hosted runner on the Lightsail server
 
@@ -120,7 +239,7 @@ When asked for labels, add: `production`.
 Install it as a service:
 
 ```bash
-exit
+exit            # back to root
 sudo su
 cd /home/github/actions-runner
 ./svc.sh install github
@@ -130,13 +249,65 @@ cd /home/github/actions-runner
 
 ### 2) Add repository secrets
 
-Add all the required secrets listed above.
+Add all required backend + frontend secrets listed above in your GitHub repository settings
+under **Settings > Secrets and variables > Actions**.
 
 ### 3) Deploy
 
-Push to `master` and GitHub Actions will deploy automatically.
+Push to `master` and GitHub Actions will automatically:
+
+1. Check out the code on the self-hosted runner.
+2. Write a `.env` file from secrets.
+3. Build both `backend` and `frontend` Docker images.
+4. Start all services with `docker compose up -d`.
+
+## Health Checks
+
+Both services expose health check endpoints:
+
+* **Backend**: `GET http://localhost:8000/api/v1/utils/health-check/`
+* **Frontend**: `GET http://localhost:3000/api/health`
+
+Docker Compose uses these to determine service health. The frontend waits for the backend
+to be healthy before starting.
 
 ## URLs
 
-* Backend API docs: `https://api-getoutvideo.keboom.ac/docs`
-* Backend API base: `https://api-getoutvideo.keboom.ac`
+| Service           | URL                                              |
+|-------------------|--------------------------------------------------|
+| Frontend          | `https://getoutvideo.keboom.ac`                   |
+| Backend API       | `https://api-getoutvideo.keboom.ac`               |
+| Backend API docs  | `https://api-getoutvideo.keboom.ac/docs`          |
+
+## Troubleshooting
+
+### Frontend build fails during Docker build
+
+* Ensure all required `NEXT_PUBLIC_*` and server-side env vars are passed as build args.
+* The Next.js build validates environment variables via `src/libs/Env.ts` using Zod.
+  Missing required variables (e.g. `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`)
+  will cause the build to fail.
+* Check build logs: `docker compose -f compose.yml logs --no-color frontend`
+
+### CORS errors from the frontend
+
+* Ensure `BACKEND_CORS_ORIGINS` includes `https://getoutvideo.keboom.ac`.
+* Format: comma-separated list of allowed origins (no trailing slashes).
+
+### Frontend shows "502 Bad Gateway"
+
+* Check if the frontend container is running: `docker compose ps`
+* Check frontend logs: `docker compose logs frontend --tail 100`
+* Verify Nginx is proxying to `127.0.0.1:3000`.
+
+### Database connection issues
+
+* Verify `DATABASE_URL` is correctly formatted for the frontend (Drizzle ORM).
+* Verify individual `POSTGRES_*` variables are correct for the backend (SQLModel).
+* For Supabase: ensure you are using the pooler connection string (IPv4).
+
+### Container startup order issues
+
+* `prestart` must complete successfully before `backend` starts.
+* `backend` must pass its health check before `frontend` starts.
+* If `prestart` fails, check migration logs: `docker compose logs prestart`
