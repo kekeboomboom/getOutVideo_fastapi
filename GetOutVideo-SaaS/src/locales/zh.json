@@ -1,0 +1,166 @@
+{
+  "Index": {
+    "meta_title": "SaaS 模板 - 构建和扩展您的业务的完美 SaaS 模板。",
+    "meta_description": "为您的 SaaS 业务构建的免费开源落地页模板，使用 React、TypeScript、Shadcn UI 和 Tailwind CSS 构建。"
+  },
+  "Navbar": {
+    "sign_in": "登录",
+    "sign_up": "注册",
+    "product": "产品",
+    "docs": "文档",
+    "blog": "博客",
+    "community": "社区",
+    "company": "公司"
+  },
+  "Hero": {
+    "follow_twitter": "在 Twitter 上关注 @Keboom",
+    "title": "构建和扩展您的业务的完美 <important>SaaS 模板</important>。",
+    "description": "为您的 SaaS 业务构建的免费开源落地页模板，使用 React、TypeScript、Shadcn UI 和 Tailwind CSS 构建。",
+    "primary_button": "开始使用",
+    "secondary_button": "在 GitHub 上标星"
+  },
+  "Sponsors": {
+    "title": "赞助商"
+  },
+  "Features": {
+    "section_subtitle": "功能",
+    "section_title": "释放 SaaS 模板的全部潜力",
+    "section_description": "为您的 SaaS 业务构建的免费开源落地页模板，使用 React、TypeScript、Shadcn UI 和 Tailwind CSS 构建。",
+    "feature1_title": "Node.js",
+    "feature2_title": "React",
+    "feature3_title": "Tailwind CSS",
+    "feature4_title": "TypeScript",
+    "feature5_title": "Shadcn UI",
+    "feature6_title": "ESLint",
+    "feature_description": "为您的 SaaS 业务构建的免费开源落地页模板，使用 React、TypeScript、Shadcn UI 和 Tailwind CSS 构建。"
+  },
+  "Pricing": {
+    "section_subtitle": "功能",
+    "section_title": "释放 SaaS 模板的全部潜力",
+    "section_description": "为您的 SaaS 业务构建的免费开源落地页模板，使用 React、TypeScript、Shadcn UI 和 Tailwind CSS 构建。",
+    "button_text": "开始使用"
+  },
+  "PricingPlan": {
+    "free_plan_name": "免费",
+    "premium_plan_name": "高级版",
+    "enterprise_plan_name": "企业版",
+    "free_plan_description": "适合个人用户",
+    "premium_plan_description": "适合小团队",
+    "enterprise_plan_description": "适合行业领导者",
+    "feature_team_member": "{number} 个团队成员",
+    "feature_website": "{number} 个网站",
+    "feature_storage": "{number} GB 存储空间",
+    "feature_transfer": "{number} TB 传输量",
+    "feature_email_support": "邮件支持",
+    "plan_interval_month": "月",
+    "plan_interval_year": "年",
+    "next_renew_date": "您的订阅将在 {date} 续费"
+  },
+  "FAQ": {
+    "question": "Lorem ipsum dolor sit amet, consectetur adipiscing elit?",
+    "answer": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam aliquam enim dui, id consequat turpis ullamcorper ac. Mauris id quam dolor. Nullam eu egestas turpis. Proin risus elit, sollicitudin in mi a, accumsan euismod turpis. In euismod mi sed diam tristique hendrerit."
+  },
+  "CTA": {
+    "title": "您准备好了吗？",
+    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "button_text": "在 GitHub 上标星"
+  },
+  "Footer": {
+    "product": "产品",
+    "docs": "文档",
+    "blog": "博客",
+    "community": "社区",
+    "company": "公司",
+    "terms_of_service": "服务条款",
+    "privacy_policy": "隐私政策",
+    "designed_by": "由 <author></author> 设计。"
+  },
+  "ProtectFallback": {
+    "not_enough_permission": "您没有执行此操作的权限"
+  },
+  "SignIn": {
+    "meta_title": "登录",
+    "meta_description": "通过我们用户友好的登录流程无缝登录您的账户。"
+  },
+  "SignUp": {
+    "meta_title": "注册",
+    "meta_description": "通过我们直观的注册流程轻松创建账户。"
+  },
+  "DashboardLayout": {
+    "home": "首页",
+    "todos": "待办事项",
+    "members": "成员",
+    "billing": "账单",
+    "settings": "设置"
+  },
+  "Dashboard": {
+    "meta_title": "SaaS 模板仪表板",
+    "meta_description": "为您的 SaaS 业务构建的免费开源落地页模板，使用 Next.js、TypeScript、Shadcn UI 和 Tailwind CSS 构建。"
+  },
+  "DashboardIndex": {
+    "title_bar": "仪表板",
+    "title_bar_description": "欢迎来到您的仪表板",
+    "message_state_title": "让我们开始吧",
+    "message_state_description": "您可以通过编辑 <code>dashboard/page.tsx</code> 文件来自定义此页面",
+    "message_state_button": "在 GitHub 上标星",
+    "message_state_alternative": "想要使用相同技术栈的更多功能？试试 <url></url>。"
+  },
+  "UserProfile": {
+    "title_bar": "用户资料",
+    "title_bar_description": "查看和管理您的用户资料"
+  },
+  "OrganizationProfile": {
+    "title_bar": "组织管理",
+    "title_bar_description": "管理您的组织"
+  },
+  "Billing": {
+    "title_bar": "账单",
+    "title_bar_description": "管理您的账单和订阅",
+    "current_section_title": "当前计划",
+    "current_section_description": "调整您的付款计划以最适合您的需求",
+    "manage_subscription_button": "管理订阅"
+  },
+  "BillingOptions": {
+    "current_plan": "当前计划",
+    "upgrade_plan": "开始使用"
+  },
+  "CheckoutConfirmation": {
+    "title_bar": "付款确认",
+    "message_state_title": "付款成功",
+    "message_state_description": "您的付款已成功处理。感谢您的购买！",
+    "message_state_button": "返回账单页面"
+  },
+  "DataTable": {
+    "no_results": "没有结果。"
+  },
+  "Todos": {
+    "title_bar": "待办事项列表",
+    "title_bar_description": "查看和管理您的待办事项列表",
+    "add_todo_button": "新建待办事项"
+  },
+  "TodoTableColumns": {
+    "open_menu": "打开菜单",
+    "edit": "编辑",
+    "delete": "删除",
+    "title_header": "标题",
+    "message_header": "消息",
+    "created_at_header": "创建时间"
+  },
+  "AddTodo": {
+    "title_bar": "添加待办事项",
+    "add_todo_section_title": "创建新的待办事项",
+    "add_todo_section_description": "填写下面的表单以创建新的待办事项"
+  },
+  "EditTodo": {
+    "title_bar": "编辑待办事项",
+    "edit_todo_section_title": "修改待办事项",
+    "edit_todo_section_description": "填写下面的表单以编辑待办事项"
+  },
+  "TodoForm": {
+    "title_label": "标题",
+    "title_description": "为您的待办事项输入描述性标题。",
+    "message_title": "消息",
+    "message_description": "为您的待办事项输入详细消息。",
+    "submit_button": "提交"
+  }
+}

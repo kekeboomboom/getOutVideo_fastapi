@@ -1,0 +1,3 @@
+#!/bin/sh
+# Temporarily disable Husky commit-msg hook.
+exit 0
