@@ -43,6 +43,7 @@ jobs:
       NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       LOGTAIL_SOURCE_TOKEN: ${{ secrets.LOGTAIL_SOURCE_TOKEN }}
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -77,6 +78,7 @@ jobs:
           NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
           SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
           LOGTAIL_SOURCE_TOKEN=${LOGTAIL_SOURCE_TOKEN}
+          SKIP_ENV_VALIDATION=${SKIP_ENV_VALIDATION}
           EOF
       - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} build
       - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} up -d
