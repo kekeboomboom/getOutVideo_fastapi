@@ -25,6 +25,10 @@ Docker Compose Stack:
               Supabase PostgreSQL   Clerk Auth
 ```
 
+> **Frontend API routing note**: The frontend issues requests to `/api/v1/...` on
+> `getoutvideo.keboom.ac`. Next.js rewrites those requests to
+> `https://api-getoutvideo.keboom.ac` using `NEXT_PUBLIC_VIDEO_API_BASE`.
+
 ## Preparation
 
 * **Lightsail**: assign a static IP to the instance.
@@ -66,12 +70,20 @@ The frontend uses a **multi-stage Docker build** (`frontend/Dockerfile`):
 
 1. **deps** -- Installs npm dependencies (cached layer).
 2. **builder** -- Copies source and runs `npm run build`. `NEXT_PUBLIC_*` variables are passed as
-   build args because they are baked into the client-side JavaScript bundle at build time.
+   build args because they are baked into the client-side JavaScript bundle at build time. This
+   includes `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_VIDEO_API_BASE`, and
+   `NEXT_PUBLIC_CLERK_SIGN_IN_URL`.
 3. **runner** -- Minimal production image. Copies built `.next/`, `node_modules/`, and `public/`.
 
 > **Important**: `NEXT_PUBLIC_*` environment variables must be provided at **build time** via
 > Docker build args. They cannot be changed at runtime because Next.js inlines them into the
 > client bundle during `next build`.
+>
+> **Important**: Set `NEXT_PUBLIC_VIDEO_API_BASE=https://api-getoutvideo.keboom.ac` at build time
+> so the Next.js rewrite for `/api/v1/...` is generated correctly.
+>
+> **Compose note**: `compose.yml` already passes `NEXT_PUBLIC_APP_URL` and
+> `NEXT_PUBLIC_VIDEO_API_BASE` as build args, so no Compose changes are required.
 
 ## Reverse Proxy (Nginx + Cloudflare)
 
@@ -81,6 +93,9 @@ Docker Compose exposes services **only on localhost**:
 * Backend API: `127.0.0.1:8000`
 
 Nginx terminates TLS (using Cloudflare Origin Cert or Let's Encrypt) and proxies to both services.
+
+> **No change required**: With the API on a separate subdomain and the frontend using Next.js
+> rewrites, Nginx does **not** need an `/api/v1` proxy on the frontend host.
 
 ### Nginx Configuration
 
@@ -173,12 +188,18 @@ sudo nginx -t && sudo systemctl reload nginx
 | Secret                              | Example / Notes                          |
 |-------------------------------------|------------------------------------------|
 | `DOCKER_IMAGE_FRONTEND`             | `frontend`                                |
+| `NEXT_PUBLIC_APP_URL`               | `https://getoutvideo.keboom.ac`           |
+| `NEXT_PUBLIC_VIDEO_API_BASE`        | `https://api-getoutvideo.keboom.ac`       |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | From Clerk Dashboard                      |
 | `CLERK_SECRET_KEY`                  | From Clerk Dashboard                      |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`     | Usually `/sign-in`                        |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`| From Stripe Dashboard (live key)          |
 | `STRIPE_SECRET_KEY`                 | From Stripe Dashboard                     |
 | `STRIPE_WEBHOOK_SECRET`             | From Stripe webhook setup                 |
 | `DATABASE_URL`                      | `postgresql://user:pass@host:5432/db`     |
+
+> These frontend values are used as **build args** for the Docker image and must be provided
+> during the image build.
 
 ### Optional Secrets
 
@@ -299,6 +320,12 @@ to be healthy before starting.
 * Check if the frontend container is running: `docker compose ps`
 * Check frontend logs: `docker compose logs frontend --tail 100`
 * Verify Nginx is proxying to `127.0.0.1:3000`.
+
+### Video extractor errors / 404 on `/api/v1/...`
+
+* Verify `NEXT_PUBLIC_VIDEO_API_BASE` is set correctly **at build time** (e.g.
+  `https://api-getoutvideo.keboom.ac`).
+* Confirm the backend is reachable at `https://api-getoutvideo.keboom.ac`.
 
 ### Database connection issues
 

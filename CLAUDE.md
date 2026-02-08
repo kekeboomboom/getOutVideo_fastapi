@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a full-stack application with:
 - **Backend**: FastAPI (Python 3.10+) with SQLModel ORM, PostgreSQL database, Alembic migrations
-- **Frontend**: Next.js 14 (TypeScript) with Clerk auth, Drizzle ORM, Tailwind CSS, Stripe
+- **Frontend**: Next.js 15 (TypeScript, React 19) with Clerk auth, Drizzle ORM, Tailwind CSS, next-intl, Stripe
 - **Infrastructure**: Docker Compose orchestration (backend + frontend), Nginx reverse proxy, Cloudflare
 - **Authentication**: JWT-based auth (backend), Clerk (frontend)
+- **Observability**: Sentry (backend + frontend), Logtail (frontend logging)
 - **Testing**: Pytest (backend), Vitest + Playwright (frontend)
 
 ## Essential Commands
@@ -78,6 +79,40 @@ Type checking:
 uv run mypy .
 ```
 
+### Frontend Development
+
+From `frontend/` directory:
+
+Install dependencies:
+```bash
+npm install
+```
+
+Run local development server:
+```bash
+npm run dev
+```
+
+Lint:
+```bash
+npm run lint
+```
+
+Type checking:
+```bash
+npm run check-types
+```
+
+Run tests:
+```bash
+npm run test
+```
+
+Run e2e tests:
+```bash
+npm run test:e2e
+```
+
 ### Database Migrations
 
 From inside backend container:
@@ -104,8 +139,11 @@ uv run prek run --all-files
 ### Backend Structure
 
 - **Entry point**: `backend/app/main.py` - FastAPI app initialization, CORS, Sentry integration
-- **API routes**: `backend/app/api/routes/` - Organized by resource (users, items, login, utils, private)
+- **API routes**: `backend/app/api/routes/` - Organized by resource (users, items, login, utils, private, video)
 - **Route aggregation**: `backend/app/api/main.py` - Includes all route modules into `api_router` with `/api/v1` prefix
+- **Video processing**: `backend/app/video_processor/` - Schemas, service, and exceptions for video processing
+- **Video endpoint**: `backend/app/api/routes/video.py` - `POST /api/v1/video/process`
+- **Validation handling**: `backend/app/main.py` formats request validation errors as `400` for `/api/v1/video/process/`
 - **Models**: `backend/app/models.py` - SQLModel models (User, Item) with Base/Create/Update/Public variants
 - **CRUD operations**: `backend/app/crud.py` - Database operations layer
 - **Configuration**: `backend/app/core/config.py` - Pydantic Settings reading from `../.env`
@@ -131,7 +169,8 @@ The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic mi
 
 - **Root `.env`**: Contains environment variables for both backend and frontend
 - **`compose.yml`**: Production services (prestart, backend, frontend)
-- **`compose.override.yml`**: Development overrides (volume mounts, hot reload, local Traefik)
+- **`compose.override.yml`**: Development overrides (volume mounts, hot reload, dev build args)
+- **`compose.traefik.yml`**: Optional Traefik setup for public routing
 
 ### Key Design Patterns
 
@@ -156,7 +195,9 @@ Critical variables in `.env` (must be changed for production):
 - `SECRET_KEY` - JWT signing (generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`)
 - `FIRST_SUPERUSER_PASSWORD` - Initial admin password
 - `POSTGRES_PASSWORD` - Database password
+- `OPENAI_API_KEY` - Required for video processing
 - `DOMAIN` - Base domain for Traefik routing (use `localhost.tiangolo.com` to test subdomain routing locally)
+- `NEXT_PUBLIC_VIDEO_API_BASE` - Frontend base URL for the video API (used by YouTube caption extractor)
 
 ## Deployment
 
@@ -174,11 +215,11 @@ With `DOMAIN=localhost`:
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 - Frontend: http://localhost:3000
-- Adminer: http://localhost:8080
-- Traefik UI: http://localhost:8090
 
 With `DOMAIN=localhost.tiangolo.com`:
 - Backend API: http://api.localhost.tiangolo.com
+- API Docs: http://api.localhost.tiangolo.com/docs
+- Frontend: http://localhost:3000
 
 ## Service URLs (Production)
 
@@ -189,6 +230,10 @@ With `DOMAIN=localhost.tiangolo.com`:
 ## Testing
 
 Backend tests use pytest with database fixtures. Coverage report generated in `htmlcov/index.html`.
+
+Frontend tests:
+- Unit: `npm run test`
+- E2E: `npm run test:e2e`
 
 ## Code Quality
 

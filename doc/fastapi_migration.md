@@ -1,47 +1,35 @@
-# FastAPI Migration Guide: Video Processing API Only
+# FastAPI Video Processing API Reference (Current Implementation)
 
-## 1) Scope (What to migrate)
-Only the HTTP API for processing a YouTube video and returning processed content.
-Exclude everything else: users/auth, admin, templates/static, DB models/migrations, and any non-API features.
+## 1) Scope
+This document describes the **implemented** HTTP API for processing a YouTube video and returning processed content.
+It covers only the video-processing endpoint and related service logic (no users/auth/admin/DB features).
 
-Source of truth in this repo:
-- `getoutvideo_django/video_processor/views.py`
-- `getoutvideo_django/video_processor/services.py`
-- `getoutvideo_django/video_processor/serializers.py`
-- `getoutvideo_django/video_processor/exceptions.py`
-- `getoutvideo_django/video_processor/urls.py`
+## 2) Source of Truth (FastAPI)
+- `backend/app/video_processor/service.py`
+- `backend/app/video_processor/schemas.py`
+- `backend/app/video_processor/exceptions.py`
+- `backend/app/api/routes/video.py`
+- `backend/app/main.py`
 
-## 2) Minimal Dependencies
+## 3) Minimal Dependencies (Video API)
 Required:
 - `fastapi`
-- `uvicorn`
 - `getoutvideo==1.1.1`
-
-Optional (for `.env` support):
-- `python-dotenv`
+- `pydantic`
+- `pydantic-settings`
 
 Standard library used:
-- `tempfile`, `pathlib`, `datetime`, `time`, `logging`
+- `tempfile`, `pathlib`, `datetime`, `time`, `re`
 
-## 3) Environment / Config
+## 4) Environment / Config
 Required env var:
 - `OPENAI_API_KEY`
 
-In Django, it is read via `GETOUTVIDEO_CONFIG["OPENAI_API_KEY"]`.
-In FastAPI, read directly from env (or via `python-dotenv`).
+It is loaded by `backend/app/core/config.py` from the repo root `.env` file (`env_file="../.env"`).
+If `OPENAI_API_KEY` is missing, the service raises `ConfigurationError` and returns HTTP 500.
 
-Example `.env`:
-```
-OPENAI_API_KEY=sk-...
-```
-
-## 4) Database Tables
-None.
-`getoutvideo_django/video_processor/models.py` is empty.
-No migrations required.
-
-## 5) HTTP API Contract (Keep as-is)
-**Endpoint:** `POST /api/v1/video/process/`
+## 5) HTTP API Contract (Current)
+**Endpoint:** `POST /api/v1/video/process`
 **Public:** no auth required.
 
 ### Request JSON
@@ -54,6 +42,8 @@ No migrations required.
 ```
 
 ### Response JSON (success)
+`response_model_exclude_none=True` means missing style outputs are omitted from `results`.
+
 ```
 {
   "status": "success",
@@ -86,7 +76,7 @@ No migrations required.
 }
 ```
 
-## 6) Validation Rules (Port from serializers)
+## 6) Validation Rules (From schemas/service)
 - `video_url` must be a valid YouTube URL:
   - `https://www.youtube.com/watch?v=...`
   - `https://youtu.be/...`
@@ -96,69 +86,44 @@ No migrations required.
   - `Summary`, `Educational`, `Balanced`, `QA Generation`, `Narrative`
 - `output_language` defaults to `"English"`
 
-Note: The service also validates styles against the API's available styles.
-If you want fewer rejections, you can relax the static `styles` list and rely on the service validation.
+The service also validates requested styles against `GetOutVideoAPI.get_available_styles()` using the mapping in `REQUEST_TO_API_STYLE`.
 
-## 7) Processing Logic (Service to Port)
-Port `VideoProcessingService` from `getoutvideo_django/video_processor/services.py`.
+## 7) Processing Logic (Service)
+Implemented in `VideoProcessingService` (`backend/app/video_processor/service.py`).
 
 Key behaviors:
-- Initialize `GetOutVideoAPI(openai_api_key=OPENAI_API_KEY)` at startup.
-- If `styles` is None, fetch all available styles.
-- Validate styles against `GetOutVideoAPI.get_available_styles()`.
-- Use temporary directory for output files:
+- Uses `GetOutVideoAPI` client from app startup state if available; otherwise initializes it with `OPENAI_API_KEY`.
+- If `styles` is `None`, it selects available API styles based on `REQUEST_TO_API_STYLE`.
+- Validates requested styles against available API styles and errors if unsupported.
+- Uses a temporary directory for output files:
   - `GetOutVideoAPI.process_youtube_url(url, output_dir, styles, output_language)`
-- Parse output files:
-  - Map file names to result keys (`summary`, `educational`, `balanced`, `qa_generation`, `narrative`).
-  - Extract video title from filename prefix.
-- Return structured response with metadata and processing time.
+- Parses output files, mapping API style names to result keys:
+  - `Summary` -> `summary`
+  - `Educational` -> `educational`
+  - `Balanced and Detailed` -> `balanced`
+  - `Q&A Generation` -> `qa_generation`
+  - `Narrative Rewriting` -> `narrative`
+- Extracts video title from file names; falls back to `video_url` if missing.
 
-### Style Mapping Used
-```
-"Balanced and Detailed" -> "balanced"
-"Summary"               -> "summary"
-"Educational"           -> "educational"
-"Narrative Rewriting"   -> "narrative"
-"Q&A Generation"        -> "qa_generation"
-```
-
-## 8) Exceptions to Port
-From `getoutvideo_django/video_processor/exceptions.py`:
+## 8) Exceptions & Error Handling
+From `backend/app/video_processor/exceptions.py`:
 
 - `VideoValidationError` -> HTTP 400
 - `ProcessingTimeoutError` -> HTTP 422
 - `ConfigurationError` -> HTTP 500
 - `ExternalServiceError` -> HTTP 502
 
-Create FastAPI exception handlers to return:
-```
-{"status": "error", "error": message, "code": status_code}
-```
+Additionally, `backend/app/main.py` registers a request validation handler that formats
+`RequestValidationError` as a `400` error envelope for `/api/v1/video/process/`.
 
-## 9) FastAPI Skeleton (Example Structure)
-Recommended files:
-- `app/main.py` (FastAPI app + router)
-- `app/schemas.py` (Pydantic models)
-- `app/services.py` (VideoProcessingService)
-- `app/exceptions.py` (custom exceptions + handlers)
+## 9) FastAPI Flow (Implemented)
+1) `POST /api/v1/video/process` accepts `VideoProcessRequest`.
+2) `VideoProcessingService.process_video(...)` runs the processing pipeline.
+3) Response wrapped in `VideoProcessResponse` with metadata and results.
 
-Minimal endpoint behavior:
-1) Validate request body.
-2) Call `VideoProcessingService.process_video(...)`.
-3) Return response in the same envelope format.
-
-## 10) Migration Steps Checklist
-1) Create FastAPI project and install dependencies.
-2) Add `.env` and load `OPENAI_API_KEY`.
-3) Copy service logic and exceptions.
-4) Implement request/response models in Pydantic.
-5) Implement endpoint with the same path.
-6) Add exception handlers for custom errors.
-7) Test with a real YouTube URL.
-
-## 11) Test Scenarios
-- Valid request with styles and output_language -> 200.
-- Valid request with only video_url -> 200 (defaults apply).
+## 10) Test Scenarios
+- Valid request with styles and `output_language` -> 200.
+- Valid request with only `video_url` -> 200 (defaults apply).
 - Invalid YouTube URL -> 400.
 - Invalid style -> 400.
 - Missing API key -> 500.
