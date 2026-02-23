@@ -170,7 +170,6 @@ The backend uses a prestart service (`scripts/prestart.sh`) that runs Alembic mi
 - **Root `.env`**: Contains environment variables for both backend and frontend
 - **`compose.yml`**: Production services (prestart, backend, frontend)
 - **`compose.override.yml`**: Development overrides (volume mounts, hot reload, dev build args)
-- **`compose.traefik.yml`**: Optional Traefik setup for public routing
 
 ### Key Design Patterns
 
@@ -214,11 +213,6 @@ Key points:
 With `DOMAIN=localhost`:
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
-- Frontend: http://localhost:3000
-
-With `DOMAIN=localhost.tiangolo.com`:
-- Backend API: http://api.localhost.tiangolo.com
-- API Docs: http://api.localhost.tiangolo.com/docs
 - Frontend: http://localhost:3000
 
 ## Service URLs (Production)

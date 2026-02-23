@@ -38,7 +38,7 @@
 
 ## Security & Configuration Tips
 - Update secrets in `.env` (`SECRET_KEY`, `FIRST_SUPERUSER_PASSWORD`, `POSTGRES_PASSWORD`, `OPENAI_API_KEY`).
-- For local subdomain routing, set `DOMAIN=localhost.tiangolo.com` and restart `docker compose watch`.
+- After changing `.env`, restart `docker compose watch`.
 
 ## Agent-Specific Notes
 - See `CLAUDE.md` for a fuller command reference and architecture map.

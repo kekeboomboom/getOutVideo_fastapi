@@ -16,8 +16,6 @@ Automatic interactive documentation with Swagger UI (from the OpenAPI backend): 
 
 Adminer, database web administration: <http://localhost:8080>
 
-Traefik UI, to see how the routes are being handled by the proxy: <http://localhost:8090>
-
 **Note**: The first time you start your stack, it might take a minute for it to be ready. While the backend waits for the database to be ready and configures everything. You can check the logs to monitor it.
 
 To check the logs, run (in another terminal):
@@ -52,34 +50,6 @@ And then you can run the local development server for the backend:
 cd backend
 fastapi dev app/main.py
 ```
-
-## Docker Compose in `localhost.tiangolo.com`
-
-When you start the Docker Compose stack, it uses `localhost` by default, with different ports for each service (backend, adminer, etc).
-
-When you deploy it to production (or staging), it will deploy the backend in a subdomain like `api.example.com`.
-
-In the guide about [deployment](deployment.md) you can read about Traefik, the configured proxy. That's the component in charge of transmitting traffic to each service based on the subdomain.
-
-If you want to test that it's all working locally, you can edit the local `.env` file, and change:
-
-```dotenv
-DOMAIN=localhost.tiangolo.com
-```
-
-That will be used by the Docker Compose files to configure the base domain for the services.
-
-Traefik will use this to transmit traffic at `api.localhost.tiangolo.com` to the backend.
-
-The domain `localhost.tiangolo.com` is a special domain that is configured (with all its subdomains) to point to `127.0.0.1`. This way you can use that for your local development.
-
-After you update it, run again:
-
-```bash
-docker compose watch
-```
-
-When deploying, for example in production, the main Traefik is configured outside of the Docker Compose files. For local development, there's an included Traefik in `compose.override.yml`, just to let you test that the domains work as expected, for example with `api.localhost.tiangolo.com`.
 
 ## Docker Compose files and env vars
 
@@ -169,19 +139,3 @@ Automatic Interactive Docs (Swagger UI): <http://localhost:8000/docs>
 Automatic Alternative Docs (ReDoc): <http://localhost:8000/redoc>
 
 Adminer: <http://localhost:8080>
-
-Traefik UI: <http://localhost:8090>
-
-### Development URLs with `localhost.tiangolo.com` Configured
-
-Development URLs, for local development.
-
-Backend: <http://api.localhost.tiangolo.com>
-
-Automatic Interactive Docs (Swagger UI): <http://api.localhost.tiangolo.com/docs>
-
-Automatic Alternative Docs (ReDoc): <http://api.localhost.tiangolo.com/redoc>
-
-Adminer: <http://localhost.tiangolo.com:8080>
-
-Traefik UI: <http://localhost.tiangolo.com:8090>
