@@ -1,14 +1,14 @@
 import { createEnv } from '@t3-oss/env-nextjs';
 import { z } from 'zod';
 
-const skipValidation =
-  process.env.SKIP_ENV_VALIDATION === 'true' ||
-  process.env.SKIP_ENV_VALIDATION === '1';
+// Default to skipping env validation to keep deployments resilient when optional
+// integrations (e.g. Clerk/Stripe) are not configured.
+const skipValidation = process.env.SKIP_ENV_VALIDATION !== 'false' && process.env.SKIP_ENV_VALIDATION !== '0';
 
 export const Env = createEnv({
   skipValidation,
   server: {
-    CLERK_SECRET_KEY: z.string().min(1),
+    CLERK_SECRET_KEY: z.string().optional(),
     DATABASE_URL: z.string().optional(),
     LOGTAIL_SOURCE_TOKEN: z.string().optional(),
     STRIPE_SECRET_KEY: z.string().min(1),
@@ -18,7 +18,7 @@ export const Env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.string().optional(),
     NEXT_PUBLIC_VIDEO_API_BASE: z.string().optional(),
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().optional(),
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().min(1),
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   },
