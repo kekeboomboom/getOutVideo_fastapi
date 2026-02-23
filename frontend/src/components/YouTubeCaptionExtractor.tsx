@@ -49,7 +49,7 @@ const parseMarkdown = (source: string): MarkdownBlock[] => {
     }
   };
 
-  lines.forEach(line => {
+  lines.forEach((line) => {
     if (line.trim().startsWith('```')) {
       if (isInCodeBlock) {
         flushCode();
@@ -67,7 +67,7 @@ const parseMarkdown = (source: string): MarkdownBlock[] => {
       return;
     }
 
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    const headingMatch = line.match(/^(#{1,6})\s+(\S.*)$/);
     if (headingMatch) {
       const hashes = headingMatch[1];
       if (!hashes) {
@@ -83,7 +83,7 @@ const parseMarkdown = (source: string): MarkdownBlock[] => {
       return;
     }
 
-    const listMatch = line.match(/^[-*]\s+(.*)$/);
+    const listMatch = line.match(/^[-*]\s+(\S.*)$/);
     if (listMatch) {
       const item = listMatch[1];
       if (!item) {

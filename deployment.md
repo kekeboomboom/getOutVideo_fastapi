@@ -1,6 +1,6 @@
-# Production Deployment (Docker Compose + Nginx + Cloudflare)
+# Production Deployment (Docker Compose + Nginx + Cloudflare, Single Domain)
 
-This guide covers production deployment of **both the backend (FastAPI) and frontend (Next.js)** using Docker Compose, behind Nginx + Cloudflare.
+This guide covers production deployment of **both the backend (FastAPI) and frontend (Next.js)** using Docker Compose, behind Nginx + Cloudflare, with a **single public frontend domain**.
 
 It is tailored to `getoutvideo.keboom.ac` on a single Lightsail instance.
 
@@ -12,30 +12,28 @@ Internet
   ▼
 Cloudflare (DNS + CDN + TLS termination to origin)
   │
-  ├── getoutvideo.keboom.ac      ──► Nginx ──► 127.0.0.1:3000 (frontend)
-  └── api-getoutvideo.keboom.ac  ──► Nginx ──► 127.0.0.1:8000 (backend)
+  └── getoutvideo.keboom.ac  ──► Nginx ──► 127.0.0.1:3000 (frontend)
 
 Docker Compose Stack:
   ┌──────────┐   ┌──────────┐   ┌──────────┐
   │ prestart │──►│ backend  │◄──│ frontend │
   │ (migrate)│   │ :8000    │   │ :3000    │
   └──────────┘   └──────────┘   └──────────┘
-                       │               │
-                       ▼               ▼
-              Supabase PostgreSQL   Clerk Auth
+        │                   │
+        ▼                   ▼
+Supabase PostgreSQL   Next.js rewrites /api/v1/* to http://backend:8000
 ```
 
 > **Frontend API routing note**: The frontend issues requests to `/api/v1/...` on
-> `getoutvideo.keboom.ac`. Next.js rewrites those requests to
-> `https://api-getoutvideo.keboom.ac` using `NEXT_PUBLIC_VIDEO_API_BASE`.
+> `getoutvideo.keboom.ac`. Next.js rewrites those requests to the backend container
+> using `NEXT_PUBLIC_VIDEO_API_BASE` (default: `http://backend:8000` in `compose.yml`).
 
 ## Preparation
 
 * **Lightsail**: assign a static IP to the instance.
 * **Lightsail firewall**: open ports **22**, **80**, **443**.
-* **DNS**: create A records pointing to your static IP:
+* **DNS**: create one A record pointing to your static IP:
   * `getoutvideo.keboom.ac` → static IP (frontend)
-  * `api-getoutvideo.keboom.ac` → static IP (backend API)
 * **Docker** and **Docker Compose** are already installed on the server.
 
 ## Database Connectivity (Supabase + GitHub Actions, IPv4)
@@ -79,11 +77,13 @@ The frontend uses a **multi-stage Docker build** (`frontend/Dockerfile`):
 > Docker build args. They cannot be changed at runtime because Next.js inlines them into the
 > client bundle during `next build`.
 >
-> **Important**: Set `NEXT_PUBLIC_VIDEO_API_BASE=https://api-getoutvideo.keboom.ac` at build time
-> so the Next.js rewrite for `/api/v1/...` is generated correctly.
+> **Important**: Set `NEXT_PUBLIC_VIDEO_API_BASE` at build time so the Next.js rewrite
+> for `/api/v1/...` is generated correctly. For single-domain deployments, a good value
+> is `http://backend:8000` (container-to-container traffic on the Compose network).
 >
 > **Compose note**: `compose.yml` already passes `NEXT_PUBLIC_APP_URL` and
-> `NEXT_PUBLIC_VIDEO_API_BASE` as build args, so no Compose changes are required.
+> `NEXT_PUBLIC_VIDEO_API_BASE` as build args. If `NEXT_PUBLIC_VIDEO_API_BASE` is not set,
+> it defaults to `http://backend:8000`.
 
 ## Reverse Proxy (Nginx + Cloudflare)
 
@@ -92,10 +92,11 @@ Docker Compose exposes services **only on localhost**:
 * Frontend: `127.0.0.1:3000`
 * Backend API: `127.0.0.1:8000`
 
-Nginx terminates TLS (using Cloudflare Origin Cert or Let's Encrypt) and proxies to both services.
+Nginx terminates TLS (using Cloudflare Origin Cert or Let's Encrypt) and proxies only the
+frontend service. The backend stays private and is consumed internally by the frontend container.
 
-> **No change required**: With the API on a separate subdomain and the frontend using Next.js
-> rewrites, Nginx does **not** need an `/api/v1` proxy on the frontend host.
+> **No extra `/api/v1` Nginx route is required**: Next.js rewrites `/api/v1/...` to
+> `NEXT_PUBLIC_VIDEO_API_BASE` and forwards the request server-side.
 
 ### Nginx Configuration
 
@@ -130,31 +131,6 @@ server {
   }
 }
 
-# ---- Backend API: api-getoutvideo.keboom.ac ----
-
-server {
-  listen 80;
-  server_name api-getoutvideo.keboom.ac;
-  return 301 https://$host$request_uri;
-}
-
-server {
-  listen 443 ssl http2;
-  server_name api-getoutvideo.keboom.ac;
-
-  ssl_certificate     /etc/ssl/certs/origin.pem;
-  ssl_certificate_key /etc/ssl/private/origin.key;
-
-  client_max_body_size 10M;
-
-  location / {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
 ```
 
 Save this as `/etc/nginx/sites-available/getoutvideo` and symlink to `sites-enabled/`:
@@ -172,7 +148,7 @@ sudo nginx -t && sudo systemctl reload nginx
 |------------------------------|-----------------------------------------------------------|
 | `DOMAIN_PRODUCTION`          | `getoutvideo.keboom.ac`                                    |
 | `STACK_NAME_PRODUCTION`      | `getoutvideo-keboom-ac`                                    |
-| `BACKEND_CORS_ORIGINS`       | `https://getoutvideo.keboom.ac,https://api-getoutvideo.keboom.ac` |
+| `BACKEND_CORS_ORIGINS`       | `https://getoutvideo.keboom.ac`                           |
 | `SECRET_KEY`                 | Generate: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `FIRST_SUPERUSER`            | Email, e.g. `admin@example.com`                            |
 | `FIRST_SUPERUSER_PASSWORD`   | Strong password                                            |
@@ -189,7 +165,7 @@ sudo nginx -t && sudo systemctl reload nginx
 |-------------------------------------|------------------------------------------|
 | `DOCKER_IMAGE_FRONTEND`             | `frontend`                                |
 | `NEXT_PUBLIC_APP_URL`               | `https://getoutvideo.keboom.ac`           |
-| `NEXT_PUBLIC_VIDEO_API_BASE`        | `https://api-getoutvideo.keboom.ac`       |
+| `NEXT_PUBLIC_VIDEO_API_BASE`        | Optional. For single-domain use `http://backend:8000` |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | From Clerk Dashboard                      |
 | `CLERK_SECRET_KEY`                  | From Clerk Dashboard                      |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL`     | Usually `/sign-in`                        |
@@ -198,8 +174,8 @@ sudo nginx -t && sudo systemctl reload nginx
 | `STRIPE_WEBHOOK_SECRET`             | From Stripe webhook setup                 |
 | `DATABASE_URL`                      | `postgresql://user:pass@host:5432/db`     |
 
-> These frontend values are used as **build args** for the Docker image and must be provided
-> during the image build.
+> These frontend values are used as **build args** for the Docker image. In this repository,
+> `NEXT_PUBLIC_VIDEO_API_BASE` defaults to `http://backend:8000` if not provided.
 
 ### Optional Secrets
 
@@ -297,8 +273,8 @@ to be healthy before starting.
 | Service           | URL                                              |
 |-------------------|--------------------------------------------------|
 | Frontend          | `https://getoutvideo.keboom.ac`                   |
-| Backend API       | `https://api-getoutvideo.keboom.ac`               |
-| Backend API docs  | `https://api-getoutvideo.keboom.ac/docs`          |
+| Backend API (internal) | `http://backend:8000` (inside Compose network) |
+| Backend API docs (internal) | `http://127.0.0.1:8000/docs` (on server host) |
 
 ## Troubleshooting
 
@@ -323,9 +299,10 @@ to be healthy before starting.
 
 ### Video extractor errors / 404 on `/api/v1/...`
 
-* Verify `NEXT_PUBLIC_VIDEO_API_BASE` is set correctly **at build time** (e.g.
-  `https://api-getoutvideo.keboom.ac`).
-* Confirm the backend is reachable at `https://api-getoutvideo.keboom.ac`.
+* Verify `NEXT_PUBLIC_VIDEO_API_BASE` is set correctly **at build time** (single-domain
+  default is `http://backend:8000`).
+* Confirm the backend is reachable from the frontend container:
+  `docker compose exec frontend wget -qO- http://backend:8000/api/v1/utils/health-check/`
 
 ### Database connection issues
 

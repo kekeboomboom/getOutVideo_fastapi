@@ -196,8 +196,8 @@ Critical variables in `.env` (must be changed for production):
 - `FIRST_SUPERUSER_PASSWORD` - Initial admin password
 - `POSTGRES_PASSWORD` - Database password
 - `OPENAI_API_KEY` - Required for video processing
-- `DOMAIN` - Base domain for Traefik routing (use `localhost.tiangolo.com` to test subdomain routing locally)
-- `NEXT_PUBLIC_VIDEO_API_BASE` - Frontend base URL for the video API (used by YouTube caption extractor)
+- `DOMAIN` - Public frontend domain for production deployment
+- `NEXT_PUBLIC_VIDEO_API_BASE` - Frontend server-side API target (defaults to `http://backend:8000` in Compose)
 
 ## Deployment
 
@@ -205,7 +205,7 @@ Production deployment docs: [deployment.md](./deployment.md)
 
 Key points:
 - Both backend and frontend run as Docker containers via `compose.yml`
-- Nginx reverse-proxies `getoutvideo.keboom.ac` → frontend (port 3000) and `api-getoutvideo.keboom.ac` → backend (port 8000)
+- Nginx reverse-proxies `getoutvideo.keboom.ac` → frontend (port 3000); backend remains private
 - `NEXT_PUBLIC_*` variables are baked into the frontend at Docker build time via build args
 - CI/CD via GitHub Actions self-hosted runner (push to `master` triggers deploy)
 
@@ -224,8 +224,8 @@ With `DOMAIN=localhost.tiangolo.com`:
 ## Service URLs (Production)
 
 - Frontend: https://getoutvideo.keboom.ac
-- Backend API: https://api-getoutvideo.keboom.ac
-- Backend API docs: https://api-getoutvideo.keboom.ac/docs
+- Backend API (internal): http://backend:8000 (inside Compose network)
+- Backend API docs (on host): http://127.0.0.1:8000/docs
 
 ## Testing
 

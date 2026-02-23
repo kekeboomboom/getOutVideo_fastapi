@@ -16,9 +16,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - run: docker compose build
-      - run: docker compose down -v --remove-orphans
-      - run: docker compose up -d --wait backend adminer
+      - name: Create .env for compose
+        run: |
+          cat > .env <<EOF
+          DOMAIN=localhost
+          PROJECT_NAME=getoutvideo-ci
+          ENVIRONMENT=local
+          BACKEND_CORS_ORIGINS=http://localhost:3000
+          SECRET_KEY=test-secret-key
+          FIRST_SUPERUSER=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=test-superuser-password
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          DOCKER_IMAGE_BACKEND=backend
+          DOCKER_IMAGE_FRONTEND=frontend
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_placeholder
+          CLERK_SECRET_KEY=sk_test_placeholder
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
+          STRIPE_SECRET_KEY=sk_test_placeholder
+          STRIPE_WEBHOOK_SECRET=whsec_placeholder
+          DATABASE_URL=postgresql://postgres:postgres@db:5432/app
+          NEXT_PUBLIC_VIDEO_API_BASE=http://backend:8000
+          SKIP_ENV_VALIDATION=true
+          EOF
+      - run: docker compose -f compose.yml -f .github/compose.ci.yml build backend
+      - run: docker compose -f compose.yml -f .github/compose.ci.yml down -v --remove-orphans
+      - run: docker compose -f compose.yml -f .github/compose.ci.yml up -d --wait backend
       - name: Test backend is up
         run: curl http://localhost:8000/api/v1/utils/health-check
-      - run: docker compose down -v --remove-orphans
+      - run: docker compose -f compose.yml -f .github/compose.ci.yml down -v --remove-orphans

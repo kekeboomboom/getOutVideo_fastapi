@@ -1,10 +1,20 @@
-// Root layout required for Next.js App Router
+import '@/styles/global.css';
+
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Get Out Video',
+  description: 'Landing page for Get Out Video',
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // This layout only handles the root structure
-  // The actual HTML structure is in [locale]/layout.tsx
-  return children;
+  return (
+    <html lang="en">
+      <body className="bg-background text-foreground antialiased">{children}</body>
+    </html>
+  );
 }
