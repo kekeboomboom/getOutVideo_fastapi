@@ -16,8 +16,6 @@ jobs:
     env:
       ENVIRONMENT: production
       DOMAIN: ${{ secrets.DOMAIN_PRODUCTION }}
-      DOCKER_IMAGE_BACKEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
-      DOCKER_IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_IN_URL }}
@@ -34,6 +32,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Normalize Docker image names
+        shell: bash
+        run: |
+          echo "DOCKER_IMAGE_BACKEND=ghcr.io/${GITHUB_REPOSITORY,,}-backend" >> "$GITHUB_ENV"
+          echo "DOCKER_IMAGE_FRONTEND=ghcr.io/${GITHUB_REPOSITORY,,}-frontend" >> "$GITHUB_ENV"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to GHCR
@@ -109,8 +112,6 @@ jobs:
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-      DOCKER_IMAGE_BACKEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
-      DOCKER_IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
       TAG: ${{ github.sha }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
@@ -126,6 +127,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Normalize Docker image names
+        shell: bash
+        run: |
+          echo "DOCKER_IMAGE_BACKEND=ghcr.io/${GITHUB_REPOSITORY,,}-backend" >> "$GITHUB_ENV"
+          echo "DOCKER_IMAGE_FRONTEND=ghcr.io/${GITHUB_REPOSITORY,,}-frontend" >> "$GITHUB_ENV"
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
