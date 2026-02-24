@@ -6,19 +6,96 @@ on:
       - master
 
 jobs:
-  deploy:
+  build-images:
     # Do not deploy in the main repository, only in user projects
     if: github.repository_owner != 'fastapi'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      ENVIRONMENT: production
+      DOMAIN: ${{ secrets.DOMAIN_PRODUCTION }}
+      DOCKER_IMAGE_BACKEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
+      DOCKER_IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_IN_URL }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+      LOGTAIL_SOURCE_TOKEN: ${{ secrets.LOGTAIL_SOURCE_TOKEN }}
+      NEXT_PUBLIC_VIDEO_API_BASE: ${{ secrets.NEXT_PUBLIC_VIDEO_API_BASE }}
+      SKIP_ENV_VALIDATION: "true"
+      NEXT_DISABLE_ESLINT: "1"
+      NEXT_DISABLE_TYPECHECK: "1"
+      FRONTEND_NODE_OPTIONS: "--max-old-space-size=1024"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE_BACKEND }}:latest
+            ${{ env.DOCKER_IMAGE_BACKEND }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE_FRONTEND }}:latest
+            ${{ env.DOCKER_IMAGE_FRONTEND }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_APP_URL=https://${{ env.DOMAIN }}
+            NEXT_PUBLIC_VIDEO_API_BASE=${{ env.NEXT_PUBLIC_VIDEO_API_BASE || 'http://backend:8000' }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL=${{ env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || '/sign-in' }}
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_live' }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ env.NEXT_PUBLIC_SENTRY_DSN }}
+            SKIP_ENV_VALIDATION=${{ env.SKIP_ENV_VALIDATION }}
+            LOGTAIL_SOURCE_TOKEN=${{ env.LOGTAIL_SOURCE_TOKEN }}
+            CLERK_SECRET_KEY=${{ env.CLERK_SECRET_KEY }}
+            STRIPE_SECRET_KEY=${{ env.STRIPE_SECRET_KEY || 'placeholder' }}
+            STRIPE_WEBHOOK_SECRET=${{ env.STRIPE_WEBHOOK_SECRET || 'placeholder' }}
+            BILLING_PLAN_ENV=prod
+            NEXT_DISABLE_ESLINT=${{ env.NEXT_DISABLE_ESLINT }}
+            NEXT_DISABLE_TYPECHECK=${{ env.NEXT_DISABLE_TYPECHECK }}
+            NODE_OPTIONS=${{ env.FRONTEND_NODE_OPTIONS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    if: github.repository_owner != 'fastapi'
+    needs: build-images
     runs-on:
       - self-hosted
       - production
+    permissions:
+      contents: read
+      packages: read
     env:
       ENVIRONMENT: production
       DOMAIN: ${{ secrets.DOMAIN_PRODUCTION }}
       PROJECT_NAME: ${{ secrets.PROJECT_NAME || github.event.repository.name }}
       STACK_NAME: ${{ secrets.STACK_NAME_PRODUCTION }}
       BACKEND_CORS_ORIGINS: ${{ secrets.BACKEND_CORS_ORIGINS }}
-      DOCKER_IMAGE_BACKEND: ${{ secrets.DOCKER_IMAGE_BACKEND }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
       FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
@@ -32,8 +109,9 @@ jobs:
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-      # Frontend
-      DOCKER_IMAGE_FRONTEND: ${{ secrets.DOCKER_IMAGE_FRONTEND }}
+      DOCKER_IMAGE_BACKEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
+      DOCKER_IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
+      TAG: ${{ github.sha }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
@@ -48,6 +126,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create .env for compose
         run: |
           cat > .env <<EOF
@@ -70,6 +154,7 @@ jobs:
           SENTRY_DSN=${SENTRY_DSN}
           DOCKER_IMAGE_BACKEND=${DOCKER_IMAGE_BACKEND}
           DOCKER_IMAGE_FRONTEND=${DOCKER_IMAGE_FRONTEND}
+          TAG=${TAG}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -82,8 +167,8 @@ jobs:
           NEXT_PUBLIC_VIDEO_API_BASE=${NEXT_PUBLIC_VIDEO_API_BASE}
           SKIP_ENV_VALIDATION=${SKIP_ENV_VALIDATION}
           EOF
-      - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} build
-      - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} up -d
+      - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} pull backend frontend
+      - run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} up -d --no-build
       - name: Dump prestart logs on failure
         if: failure()
         run: docker compose -f compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} logs --no-color prestart
