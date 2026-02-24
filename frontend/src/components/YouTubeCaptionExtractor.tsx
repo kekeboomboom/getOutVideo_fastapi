@@ -195,7 +195,7 @@ export const YouTubeCaptionExtractor = () => {
     setCopySuccess(false);
 
     try {
-      const response = await fetch('/api/v1/video/process/', {
+      const response = await fetch('/api/v1/video/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -36,7 +36,11 @@ register_video_exception_handlers(app)
 async def video_request_validation_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    if request.url.path == f"{settings.API_V1_STR}/video/process/":
+    video_process_paths = {
+        f"{settings.API_V1_STR}/video/process",
+        f"{settings.API_V1_STR}/video/process/",
+    }
+    if request.url.path in video_process_paths:
         return JSONResponse(
             status_code=400,
             content={
