@@ -1,6 +1,7 @@
 services:
 
   prestart:
+    container_name: getoutvideo-prestart
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
     build:
       context: .
@@ -23,6 +24,7 @@ services:
       - SENTRY_DSN=${SENTRY_DSN}
 
   backend:
+    container_name: getoutvideo-backend
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
     restart: always
     depends_on:
@@ -57,6 +59,7 @@ services:
       - "127.0.0.1:8000:8000"
 
   frontend:
+    container_name: getoutvideo-frontend
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
     restart: always
     build:
