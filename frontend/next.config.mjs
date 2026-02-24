@@ -13,7 +13,23 @@ const bundleAnalyzer = withBundleAnalyzer({
 
 const isEnabled = value => value === '1' || value === 'true';
 
-const getVideoApiBase = () => process.env.NEXT_PUBLIC_VIDEO_API_BASE?.replace(/\/$/, '');
+const normalizeUrl = value => value?.replace(/\/$/, '');
+
+const getVideoApiBase = () => {
+  const configuredApiBase = normalizeUrl(process.env.NEXT_PUBLIC_VIDEO_API_BASE);
+  const appUrl = normalizeUrl(process.env.NEXT_PUBLIC_APP_URL);
+
+  if (!configuredApiBase) {
+    return undefined;
+  }
+
+  // Prevent rewrite loops when API base is accidentally set to the public app domain.
+  if (appUrl && (configuredApiBase === appUrl || configuredApiBase.startsWith(`${appUrl}/`))) {
+    return 'http://backend:8000';
+  }
+
+  return configuredApiBase;
+};
 const disableLintInDockerBuild = isEnabled(process.env.NEXT_DISABLE_ESLINT);
 const disableTypecheckInDockerBuild = isEnabled(process.env.NEXT_DISABLE_TYPECHECK);
 
