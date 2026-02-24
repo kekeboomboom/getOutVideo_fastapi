@@ -175,16 +175,10 @@ export const YouTubeCaptionExtractor = () => {
     totalCaptions: number;
   } | null>(null);
   const formattedCaptions = useMemo(() => parseMarkdown(captions), [captions]);
-  const apiBaseUrl = process.env.NEXT_PUBLIC_VIDEO_API_BASE?.replace(/\/$/, '');
 
   const handleExtractCaptions = async () => {
     if (!url.trim()) {
       setError('Please enter a YouTube URL');
-      return;
-    }
-
-    if (!apiBaseUrl) {
-      setError('Video API base URL is not configured. Set NEXT_PUBLIC_VIDEO_API_BASE.');
       return;
     }
 

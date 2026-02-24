@@ -32,6 +32,7 @@ const getVideoApiBase = () => {
 };
 const disableLintInDockerBuild = isEnabled(process.env.NEXT_DISABLE_ESLINT);
 const disableTypecheckInDockerBuild = isEnabled(process.env.NEXT_DISABLE_TYPECHECK);
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -46,6 +47,10 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   async rewrites() {
+    if (!isDevelopment) {
+      return [];
+    }
+
     const apiBase = getVideoApiBase();
     if (!apiBase) {
       return [];
