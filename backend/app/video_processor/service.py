@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Iterable
+from urllib.parse import parse_qs, urlparse
 
 from getoutvideo import GetOutVideoAPI
 
@@ -44,6 +45,10 @@ class VideoProcessingService:
             self._validate_styles(styles)
 
         api = self._get_api_client()
+        _ensure_youtube_transcript_api_compat()
+        available_languages = self._configure_transcript_language_preferences(api, video_url)
+        if available_languages == []:
+            raise VideoValidationError("No subtitles found for this video.")
         selected_styles = self._resolve_styles(styles, api)
 
         with TemporaryDirectory() as temp_dir:
@@ -130,6 +135,28 @@ class VideoProcessingService:
         api_to_request = {value: key for key, value in REQUEST_TO_API_STYLE.items()}
         return [api_to_request.get(style, style) for style in selected_styles]
 
+    def _configure_transcript_language_preferences(
+        self, api: GetOutVideoAPI, video_url: str
+    ) -> list[str] | None:
+        config = getattr(api, "config", None)
+        transcript_config = getattr(config, "transcript_config", None)
+        if transcript_config is None:
+            return None
+
+        video_id = _extract_video_id(video_url)
+        if not video_id:
+            transcript_config.transcript_languages = None
+            return None
+
+        available_languages = _fetch_available_transcript_languages(video_id)
+        if available_languages is None:
+            transcript_config.transcript_languages = None
+            return None
+        transcript_config.transcript_languages = _choose_language_priority(
+            available_languages
+        )
+        return available_languages
+
     def _parse_outputs(self, output_dir: Path) -> tuple[dict[str, str], str]:
         results: dict[str, str] = {}
         video_title = ""
@@ -172,3 +199,73 @@ def _matches_pattern(value: str, pattern: str) -> bool:
 
 def _cleanup_title(value: str) -> str:
     return value.replace("_", " ").replace("-", " ").strip()
+
+
+def _extract_video_id(video_url: str) -> str | None:
+    parsed = urlparse(video_url)
+    host = parsed.netloc.lower()
+
+    if "youtu.be" in host:
+        return parsed.path.lstrip("/") or None
+    if "youtube.com" not in host:
+        return None
+
+    if parsed.path == "/watch":
+        return parse_qs(parsed.query).get("v", [None])[0]
+    if parsed.path.startswith("/embed/") or parsed.path.startswith("/v/"):
+        tail = parsed.path.split("/", 2)
+        return tail[2] if len(tail) > 2 else None
+    return None
+
+
+def _fetch_available_transcript_languages(video_id: str) -> list[str] | None:
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except Exception:  # noqa: BLE001 - optional runtime dependency
+        return None
+
+    try:
+        transcript_list = YouTubeTranscriptApi().list(video_id)
+    except Exception:  # noqa: BLE001 - network and upstream errors
+        return None
+
+    codes: list[str] = []
+    for transcript in transcript_list:
+        code = getattr(transcript, "language_code", "")
+        if code:
+            codes.append(code)
+    return codes
+
+
+def _choose_language_priority(available_languages: list[str]) -> list[str] | None:
+    if not available_languages:
+        return None
+
+    unique_languages = list(dict.fromkeys(available_languages))
+    chinese = [code for code in unique_languages if code.lower().startswith("zh")]
+    english = [code for code in unique_languages if code.lower().startswith("en")]
+
+    if chinese:
+        prioritized = chinese
+    elif english:
+        prioritized = english
+    else:
+        prioritized = [unique_languages[0]]
+
+    remainder = [code for code in unique_languages if code not in prioritized]
+    return prioritized + remainder
+
+
+def _ensure_youtube_transcript_api_compat() -> None:
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except Exception:  # noqa: BLE001 - optional runtime dependency
+        return
+
+    if hasattr(YouTubeTranscriptApi, "list_transcripts"):
+        return
+
+    def _list_transcripts(video_id: str):
+        return YouTubeTranscriptApi().list(video_id)
+
+    YouTubeTranscriptApi.list_transcripts = staticmethod(_list_transcripts)
